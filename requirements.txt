@@ -1,0 +1,6 @@
+requests==2.18.*
+aiohttp==2.3.*
+pandas==0.21a.*
+tables==3.4.*
+ipdb
+ipython
