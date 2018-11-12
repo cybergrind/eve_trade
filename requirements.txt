@@ -4,3 +4,4 @@ pandas==0.21a.*
 tables==3.4.*
 ipdb
 ipython
+pytest

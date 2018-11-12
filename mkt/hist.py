@@ -23,7 +23,7 @@ columns = ['region', 'type_id', 'average', 'date', 'highest', 'lowest',
 try:
     _hist_cache = pd.read_pickle(FNAME)
 except:
-    log.exception('ooo')
+    # log.exception('ooo')
     # init with some data to make contains work
     data = [{'region': 'default',
              'type_id': 'default',
@@ -47,16 +47,25 @@ def maybe_save():
         _sc = 0
 
 
-semaphore = asyncio.Semaphore(25)
+semaphore = asyncio.Semaphore(10)
 
 
-def limit_check(resp):
+async def limit_check(resp):
+    if 'X-Esi-Error-Limit-Remain' not in resp.headers:
+        print(resp.headers)
+        print(resp)
+        return
     limit = int(resp.headers['X-Esi-Error-Limit-Remain'])
 
     if limit < 85:
+        await asyncio.sleep(1)
+
+    if limit < 30:
         print(f'Limit reached: {resp}')
         loop = asyncio.get_event_loop()
         loop.stop()
+    else:
+        print(f'Limit: {limit}')
 
 
 def get_history(type_id, region):
@@ -74,6 +83,7 @@ async def _get_history(session, type_id, region):
     region = str(region)
     if _hist_cache.index.contains((region, type_id)):
         print(f'Cached: {region} => {type_id}')
+        out = _hist_cache[region, type_id]
         return None
 
     async with semaphore:
@@ -88,7 +98,7 @@ async def _get_history(session, type_id, region):
             while isinstance(ret, dict):
                 while True:
                     resp = await session.get(url, params=data)
-                    limit_check(resp)
+                    await limit_check(resp)
                     if resp.status == 502:
                         sleep = int(resp.headers['X-Esi-Error-Limit-Reset'])
                         print(f'Bad gateway. sleep for {sleep}')
@@ -105,7 +115,8 @@ async def _get_history(session, type_id, region):
                     print(f'Error history: {ret} Type: {type_id} in {region}')
                     await asyncio.sleep(1)
                 print(f'Processed: {type_id} in {region}')
-            data = [{'region': region, 'type_id': type_id, 'data': ret}]
+            data = [{'region': region, 'type_id': type_id, **x} for x in ret]
+            # data = [{'region': region, 'type_id': type_id, 'data': ret}]
             return data
             await asyncio.sleep(1.1)
             return ret
@@ -147,8 +158,9 @@ def batches(items, size=1000):
 
 def update_cache(books):
     loop = asyncio.get_event_loop()
+    log.debug(f'Num book items: {len(books)}')
     for region, book in books.items():
-        print('Run for: {}'.format(region))
+        log.debug('Run for: {region}')
         types = list(book.keys())
         for batch in batches(types):
             loop.run_until_complete(region_cache(region, batch))

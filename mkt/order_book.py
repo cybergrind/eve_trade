@@ -26,10 +26,12 @@ _cache = {}
 
 def sort_book(book):
     out = {}
+
     for order in book:
         # if order['location_id'] not in [JITA, FORTIZAR_YE]:
         #     continue
         out.setdefault(order['type_id'], {}).setdefault(order['is_buy_order'], []).append(order)
+
     for v in out.values():
         if True in v:
             v[True] = sorted(v[True], key=lambda x: x['price'], reverse=True)
@@ -40,11 +42,17 @@ def sort_book(book):
 
 def get_book(region):
     book = []
-    page = 0
+    page = 1
     while True:
         url = f'https://esi.tech.ccp.is/latest/markets/{region}/orders/'
         resp = requests.get(url, params={**data, 'page': page})
+        if resp.status_code not in (200, 304):
+            print(url)
+            print(resp.status_code)
+            print(resp.json())
+            break
         page += 1
+        print(f'Book page: {page}')
         if not resp.json():
             log.debug('Pages: {}'.format(page))
             break
@@ -94,10 +102,14 @@ def compare_type(type_id=MOBILE, src=FORGE, dst=EVERYSHORE):
     # print(f'Process type: {type_id}')
     hsrc = get_history(type_id, src)[-8:]
     hdst = get_history(type_id, dst)[-8:]
+    if type(hdst) == list or type(hsrc) == list:
+        return {'error': 'got a list'}
+
+    hsrc = hsrc.to_dict(orient='records')
+    hdst = hdst.to_dict(orient='records')
 
     if len(hdst) < 8 or len(hsrc) < 8:
         return {'error': 'not liquid history'}
-
     # return if not liquid type
     count = 0
     vol = 0
@@ -107,7 +119,7 @@ def compare_type(type_id=MOBILE, src=FORGE, dst=EVERYSHORE):
             return {'error': 'not volatile type'}
 
         diff = dst['average'] - src['average']
-        day_vol = diff * dst['order_coun']
+        day_vol = diff * dst['order_count']
         count += dst['order_count']
         # print(f'Day vol: {day_vol} Diff: {diff}')
         if day_vol < 10000:
@@ -138,7 +150,7 @@ def get_best_rates(src=FORGE, dst=EVERYSHORE):
     for type_id, book in _cache[dst].items():
         if type_id not in _cache[src]:
             continue
-        print(f'Process: {type_id} {c}/{total}')
+        # print(f'Process: {type_id} {c}/{total}')
 
         log.debug(f'Process: {type_id}')
         if len(book.keys()) != 2:
@@ -155,8 +167,16 @@ def get_best_rates(src=FORGE, dst=EVERYSHORE):
         if 'error' in comp_type:
             log.debug(f'Skip: {type_id} {comp_type}')
             continue
-        print(comp_type)
+        # print(comp_type)
         assert comp_type['vol'] > 1
         out.append(comp_type)
     out = sorted(out, key=lambda x: x['vol'], reverse=True)
     return out
+
+
+def main():
+    save_book_cache()
+
+
+if __name__ == '__main__':
+    main()

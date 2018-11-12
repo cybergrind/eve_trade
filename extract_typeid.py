@@ -44,7 +44,7 @@ def extract_typeid(args):
         for k, v in yaml.load(f).items():
             if should_skip(v):
                 continue
-            out.append({"id": k, "name": v["name"]["en"]})
+            out.append({"id": str(k), "name": v["name"]["en"]})
     return out
 
 
