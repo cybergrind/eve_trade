@@ -1,18 +1,15 @@
-import os
 import json
 import logging
-import requests
-import time
-import pandas as pd
+import os
+from multiprocessing import Pool
 
+import pandas as pd
+import requests
 
 # logging.basicConfig(level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 log = logging.getLogger('order_book')
 
-data = {
-    'datasource': 'tranquility',
-    'order_type': 'all',
-}
+data = {'datasource': 'tranquility', 'order_type': 'all'}
 
 EVERYSHORE = 10000037
 FORGE = 10000002
@@ -58,6 +55,26 @@ def get_book(region):
             break
         book.extend(resp.json())
     return sort_book(book)
+
+
+def get_book_df(region=EVERYSHORE):
+    book = []
+    page = 1
+    while True:
+        url = f'https://esi.tech.ccp.is/latest/markets/{region}/orders/'
+        resp = requests.get(url, params={**data, 'page': page})
+        if resp.status_code not in (200, 304):
+            print(url)
+            print(resp.status_code)
+            print(resp.json())
+            break
+        page += 1
+        print(f'Book page: {page}')
+        if not resp.json():
+            log.debug('Pages: {}'.format(page))
+            break
+        book.extend(resp.json())
+    return pd.DataFrame.from_dict(book).set_index(['type_id', 'is_buy_order'])
 
 
 def init_books():
@@ -127,16 +144,18 @@ def compare_type(type_id=MOBILE, src=FORGE, dst=EVERYSHORE):
             return {'error': f'not volatile type: day vol {day_vol} {dst}'}
         vol += day_vol
     assert vol > 20, vol
-    return {'vol': vol * .94, 'count': count, 'type_id': type_id, 'name': get_name(type_id)}
+    return {
+        'vol': vol * .94,
+        'count': count,
+        'type_id': type_id,
+        'name': get_name(type_id),
+        'dst_price': dst['average'],
+        'src_price': src['average'],
+    }
 
 
-PRICE_RANGE = {
-    'min': 10000,
-    'max': 50000000,
-}
+PRICE_RANGE = {'min': 10000, 'max': 50000000}
 
-
-from multiprocessing import Pool
 
 def get_best_rates(src=FORGE, dst=EVERYSHORE):
     src = str(src)
@@ -165,7 +184,7 @@ def get_best_rates(src=FORGE, dst=EVERYSHORE):
 
         comp_type = compare_type(type_id, src, dst)
         if 'error' in comp_type:
-            log.debug(f'Skip: {type_id} {comp_type}')
+            # log.debug(f'Skip: {type_id} {comp_type}')
             continue
         # print(comp_type)
         assert comp_type['vol'] > 1
