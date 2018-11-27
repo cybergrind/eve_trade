@@ -54,14 +54,25 @@ async def get_book_pages(region, pages):
     return list(chain(*[task.result() for task in ok]))
 
 
+def check_book(book):
+    """
+    if we have duplicates this means that we have orderbook from two different caches
+    eg. from getting it in a middle of cache refresh
+    """
+    return not book.index.duplicated().any()
+
+
 async def get_book(region, pages):
     log.debug(f"Pages: {pages}")
-    book = await get_book_pages(region, pages)
-    log.debug(f"Got book: {len(book)} {book[0]}")
-    df = pd.DataFrame.from_dict(book).set_index(["order_id"])
-    df.sort_index(inplace=True)
-    dt = datetime.datetime.utcnow().strftime(SAVE_PAT)
-    df.to_csv(f"{SAVE_PATH}/{dt}_{region}.csv.gz", compression="gzip")
+    while True:
+        book = await get_book_pages(region, pages)
+        log.debug(f"Got book: {len(book)} {book[0]}")
+        df = pd.DataFrame.from_dict(book).set_index(["order_id"])
+        df.sort_index(inplace=True)
+        dt = datetime.datetime.utcnow().strftime(SAVE_PAT)
+        if check_book(df):
+            break
+        df.to_csv(f"{SAVE_PATH}/{dt}_{region}.csv.gz", compression="gzip")
 
 
 async def book_worker():
