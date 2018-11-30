@@ -59,7 +59,9 @@ def check_book(book):
     if we have duplicates this means that we have orderbook from two different caches
     eg. from getting it in a middle of cache refresh
     """
-    return not book.index.duplicated().any()
+    correct = not book.index.duplicated().any()
+    log.debug(f'Book correctness: {correct}')
+    return correct
 
 
 async def get_book(region, pages):
@@ -72,7 +74,9 @@ async def get_book(region, pages):
         dt = datetime.datetime.utcnow().strftime(SAVE_PAT)
         if check_book(df):
             break
-        df.to_csv(f"{SAVE_PATH}/{dt}_{region}.csv.gz", compression="gzip")
+    path = f"{SAVE_PATH}/{dt}_{region}.csv.gz"
+    log.debug(f'Save book: {path}')
+    df.to_csv(path, compression="gzip")
 
 
 async def book_worker():
