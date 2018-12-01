@@ -1,5 +1,5 @@
-
 import pandas as pd
+
 from mkt.hist import columns
 
 
@@ -29,4 +29,3 @@ def test_01_caching():
         }
     ]
     frame = pd.DataFrame(data, columns=columns)
-    import ipdb; ipdb.set_trace()
