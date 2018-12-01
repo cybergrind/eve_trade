@@ -1,4 +1,3 @@
-
 # published=True
 # marketGroupID
 
@@ -16,20 +15,17 @@ import argparse
 import logging
 import pickle
 
+import pandas as pd
 import yaml
 
-import pandas
-
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 log = logging.getLogger("extract_typeid")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="DESCRIPTION")
     # parser.add_argument('-l', '--ll', dest='ll', action='store_true', help='help')
-    parser.add_argument("typefile", default="sde/fsd/typeIDs.yaml")
+    parser.add_argument("--typefile", default="sde/fsd/typeIDs.yaml")
     return parser.parse_args()
 
 
@@ -44,16 +40,15 @@ def extract_typeid(args):
         for k, v in yaml.load(f).items():
             if should_skip(v):
                 continue
-            out.append({"id": str(k), "name": v["name"]["en"]})
+            out.append({"id": k, "name": v["name"]["en"]})
     return out
 
 
 def main():
     args = parse_args()
     extracted = extract_typeid(args)
-    df = pandas.DataFrame(extracted).set_index(["id"])
-    with open("types.pickle", "wb") as f:
-        pickle.dump(df, f)
+    df = pd.DataFrame(extracted).set_index(['id'])
+    df.to_hdf('types.hdf', 'types', mode='w')
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ from glob import glob
 
 import pandas as pd
 
-from mkt.utils import build_diff, diff_df2
+from mkt.utils import build_diff
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 log = logging.getLogger('build_diffs')
@@ -66,6 +66,11 @@ class DiffManager:
         self.diff = pd.read_csv(first_book['name']).set_index(['order_id'])
         self.diff['date'] = first_book['date']
         self.diff['type'] = 'init'
+        self.diff['issued'] = pd.to_datetime(self.diff['issued'])
+
+    def add_names(self):
+        self.names = pd.read_hdf('types.hdf')
+        self.diff['type_name'] = self.names.loc[self.diff['type_id']].reset_index().name
 
     def build_new_diffs(self):
         for s, e in zip(self.books, self.books[1:]):
