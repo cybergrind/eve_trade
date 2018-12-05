@@ -12,6 +12,20 @@ session.ready = False
 log = logging.getLogger("eve_utils")
 
 
+async def session_reinit():
+    global session
+    old_session = session
+
+    session = aiohttp.ClientSession()
+    await session.__aenter__()
+    session.ready = True
+
+    try:
+        await old_session.__aexit__(None, None, None)
+    except Exception as e:
+        log.exception(e)
+
+
 async def eve_get(url, params={}, timeout=TIMEOUT):
     if not session.ready:
         await session.__aenter__()
@@ -22,7 +36,8 @@ async def eve_get(url, params={}, timeout=TIMEOUT):
             try:
                 resp = await session.get(url, params=params, timeout=timeout)
             except asyncio.TimeoutError:
-                print(f'Exception in: {url} {params}')
+                log.exception(f'Exception in: {url} {params}')
+                session_reinit()
                 continue
             if resp.status > 399:
                 print(resp.headers)
