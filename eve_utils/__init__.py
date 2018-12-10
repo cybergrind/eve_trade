@@ -35,7 +35,7 @@ async def eve_get(url, params={}, timeout=TIMEOUT):
         while True:
             try:
                 resp = await session.get(url, params=params, timeout=timeout)
-            except asyncio.TimeoutError:
+            except (asyncio.TimeoutError, asyncio.CancelledError):
                 log.exception(f'Exception in: {url} {params}')
                 session_reinit()
                 continue
