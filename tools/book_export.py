@@ -33,7 +33,7 @@ async def wait_pages(region):
             log.debug(f"Sleep for: {delta}")
             await asyncio.sleep(abs(delta))
         else:
-            return int(resp.headers["X-Pages"]), expires
+            return int(resp.headers["X-Pages"]), None
 
 
 async def get_book_page(region, page):
@@ -90,6 +90,9 @@ async def book_worker():
                 log.exception(f'When downloaded the book: {e}')
                 log.info(f'Sleep for 1 minute')
                 await asyncio.sleep(60)
+
+        if not expires:
+            continue
 
         delta = (expires - datetime.datetime.utcnow()).total_seconds()
         while delta > 0:

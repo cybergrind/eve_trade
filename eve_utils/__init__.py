@@ -16,10 +16,11 @@ async def session_reinit():
     global session
     old_session = session
 
-    session = aiohttp.ClientSession()
-    await session.__aenter__()
-    session.ready = True
+    new_session = aiohttp.ClientSession()
+    await new_session.__aenter__()
+    new_session.ready = True
 
+    session = new_session
     try:
         await old_session.__aexit__(None, None, None)
     except Exception as e:
@@ -37,7 +38,7 @@ async def eve_get(url, params={}, timeout=TIMEOUT):
                 resp = await session.get(url, params=params, timeout=timeout)
             except (asyncio.TimeoutError, asyncio.CancelledError):
                 log.exception(f'Exception in: {url} {params}')
-                session_reinit()
+                await session_reinit()
                 continue
             if resp.status > 399:
                 print(resp.headers)
