@@ -13,10 +13,10 @@
 #!/usr/bin/env python3
 import argparse
 import logging
-import pickle
 
 import pandas as pd
 import yaml
+
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 log = logging.getLogger("extract_typeid")

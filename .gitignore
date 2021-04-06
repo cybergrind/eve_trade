@@ -3,3 +3,6 @@ __pycache__
 sde-*
 venv
 books_history
+sde*
+out
+typeid.txt

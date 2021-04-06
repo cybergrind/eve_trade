@@ -8,7 +8,7 @@ from itertools import chain
 import pandas as pd
 
 from eve_utils import eve_get
-from mkt.const import EVERYSHORE, FORGE, TIME_PAT
+from mkt.const import FORGE, TIME_PAT, STRUCTS
 
 # expires: Sun, 25 Nov 2018 14:07:13 GMT
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -21,12 +21,14 @@ SAVE_PATH = "books_history"
 
 os.makedirs(SAVE_PATH, exist_ok=True)
 MAX_WAIT = 30
+ORDER_PARAMS = {'datasource': 'tranquility', 'order_type': 'all'}
 
 
 async def wait_pages(region):
-    url = f"https://esi.tech.ccp.is/latest/markets/{region}/orders/"
+    url = f"https://esi.evetech.net/latest/markets/{region}/orders/"
     while True:
-        resp = await eve_get(url)
+        resp = await eve_get(url, ORDER_PARAMS)
+        print(f'{resp.headers}')
         expires = datetime.datetime.strptime(resp.headers["expires"], TIME_PAT)
         delta = (expires - datetime.datetime.utcnow()).total_seconds()
         if 0 < delta < MAX_WAIT:
@@ -37,9 +39,9 @@ async def wait_pages(region):
 
 
 async def get_book_page(region, page):
-    url = f"https://esi.tech.ccp.is/latest/markets/{region}/orders/"
-    resp = await eve_get(url, {"page": page})
-    ret = await resp.json()
+    url = f"https://esi.evetech.net/latest/markets/{region}/orders/"
+    resp = await eve_get(url, {"page": page, **ORDER_PARAMS})
+    ret = resp.json()
     log.debug(f"Len ret: {len(ret)}")
     return ret
 
