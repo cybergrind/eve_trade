@@ -8,7 +8,7 @@ from itertools import chain
 import pandas as pd
 
 from eve_utils import eve_get
-from mkt.const import FORGE, TIME_PAT, STRUCTS
+from mkt.const import FORGE, TIME_PAT, KEEP_LOCATIONS
 
 # expires: Sun, 25 Nov 2018 14:07:13 GMT
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -35,13 +35,13 @@ async def wait_pages(region):
             log.debug(f"Sleep for: {delta}")
             await asyncio.sleep(abs(delta))
         else:
-            return int(resp.headers["X-Pages"]), None
+            return int(resp.headers["X-Pages"]), expires
 
 
 async def get_book_page(region, page):
     url = f"https://esi.evetech.net/latest/markets/{region}/orders/"
     resp = await eve_get(url, {"page": page, **ORDER_PARAMS})
-    ret = resp.json()
+    ret = [x for x in resp.json() if x['location_id'] in KEEP_LOCATIONS]
     log.debug(f"Len ret: {len(ret)}")
     return ret
 

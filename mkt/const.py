@@ -3,9 +3,6 @@ FORGE = 10000002
 
 TRANQ_TS = 1028858195912
 JITA = 60003760
-STRUCTS = {
-    'tranq_tts': TRANQ_TS,
-    'jita': JITA,
-}
+KEEP_LOCATIONS = [TRANQ_TS, JITA]
 
 TIME_PAT = "%a, %d %b %Y %H:%M:%S %Z"
