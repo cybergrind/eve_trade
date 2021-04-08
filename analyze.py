@@ -1,29 +1,79 @@
+from collections import namedtuple
+import datetime
+
 import pandas as pd
 
+
+START = datetime.datetime(2021, 4, 6, 12, 19)
 names = pd.read_hdf('types.hdf')
 df = pd.read_hdf('diff.hdf')
 df = df.reset_index()
 df['type_name'] = names.reindex(df.type_id).reset_index().name
-df.set_index(['order_id'])
 
 
 changed = df[df.volume_change > 1]
 
 by_type = changed.groupby('type_id')['type_id'].count()
-more_than_3 = by_type[by_type > 3]
+more_than_3 = by_type[by_type > 1]
 
-big_movers = changed[changed.type_id.isin(more_than_3.index)]
-with_price_changed = big_movers[(big_movers.price_change != 0) & (big_movers.price > 100000)]
+u_cols = [
+    'is_buy_order',
+    'type_id',
+    'volume_change',
+    'type_name',
+]
 
-# with_price_changed = with_price_changed.reset_index()
-# with_price_changed['type_name'] = names.loc[with_price_changed['type_id']].reset_index().name
-# with_price_changed.set_index(['order_id'])
 
-expensive = (
-    with_price_changed[['type_id', 'type_name', 'price', 'is_buy_order']]
-    .sort_values(['price'])
-    .iloc[-30:]
-)
+# .drop_duplicates(['type_id', 'is_buy_order'])
+df = df.set_index(['type_id'])
+
+
+def get_price_old(row):
+    type_id = row.name
+    is_buy = row.is_buy_order
+    t = df.reset_index().set_index(['type_id', 'is_buy_order'])
+    b = t.loc[type_id, is_buy]
+    idx = 0 if is_buy else -1
+    try:
+        return b[b.type == 'volume'].sort_values('date').iloc[idx].price
+    except Exception:
+        return 0.0001
+
+
+def get_price(frame):
+    b = df.reset_index().set_index(['type_id', 'is_buy_order'])
+    b = b[b.type == 'volume'].sort_values('date')
+    b = b.reset_index().drop_duplicates(['type_id', 'is_buy_order'], keep='last')
+    b = b.set_index(['type_id', 'is_buy_order'])
+    rei = b.reindex([frame.type_id, frame.is_buy_order]).reset_index()
+    frame['price'] = rei.price
+    return frame
+
+
+def get_movers():
+    tmp = changed[changed.type_id.isin(more_than_3.index)].reset_index()[u_cols].copy()
+    tmp = tmp.groupby(['type_id', 'is_buy_order', 'type_name']).sum().reset_index()
+    tmp = get_price(tmp)
+    tmp = tmp.set_index('type_id')
+    return tmp
+
+
+big_movers = get_movers()
+with_price_changed = big_movers.reset_index()
+# with_price_changed = big_movers[(big_movers.volume_change != 0) & (big_movers.price > 100000)]
+
+### with_price_changed = with_price_changed.reset_index()
+### with_price_changed['type_name'] = names.loc[with_price_changed['type_id']].reset_index().name
+### with_price_changed.set_index(['order_id'])
+
+# expensive = (
+#   with_price_changed[['type_id', 'type_name', 'price', 'is_buy_order']]
+#   .sort_values(['price'])
+#   .iloc[-30:]
+# )
+
+
+Info = namedtuple('Info', ['buy', 'sell', 'ratio', 'vol_ratio', 'sell_vol'])
 
 
 def locate(type_id):
@@ -35,7 +85,10 @@ def locate(type_id):
         ratio = (sell.iloc[0].price - bp) / bp
     except Exception:
         ratio = 0.001
-    return buy, sell, ratio
+
+    vol_ratio = (sell['volume_change'].sum() or 0.01) / (buy['volume_change'].sum() or 0.01)
+    sell_vol = sell['volume_change'].sum()
+    return Info(buy, sell, ratio, vol_ratio, sell_vol)
 
 
 def moves(type_id):
@@ -44,8 +97,80 @@ def moves(type_id):
 
 def analyze():
     tmp = with_price_changed.set_index(['type_id'])
-    tmp['ratio'] = tmp.apply(lambda x: locate(x.name)[2], axis=1)
+    locate_res = tmp.apply(lambda x: locate(x.name), axis=1)
+    tmp['ratio'] = locate_res.map(lambda x: x.ratio)
+    tmp['vol_ratio'] = locate_res.map(lambda x: x.vol_ratio)
+    tmp['sell_vol'] = locate_res.map(lambda x: x.sell_vol)
     return tmp.sort_values(['ratio'])
+
+
+# a = analyze()
+
+
+def collapse(row):
+    print(row)
+
+
+def ttt():
+    tmp = with_price_changed.set_index(['type_id'])
+    tmp.apply(collapse, axis=1)
+
+
+def pp(frame):
+    return frame[
+        [
+            'is_buy_order',
+            'created',
+            'date',
+            'price',
+            'type_id',
+            'volume_change',
+            'price_change',
+            'type',
+            'type_name',
+        ]
+    ]
+
+
+def ppf(type_id, is_buy=True):
+    out = pp(df.loc[(df.type_id == type_id) & (df.is_buy_order == is_buy)])
+    print(f'SumVol: {out["volume_change"].sum()}')
+    return out
+
+
+def ppb(type_id):
+    return ppf(type_id, is_buy=True)
+
+
+def pps(type_id):
+    return ppf(type_id, is_buy=False)
+
+
+def pp_all(df):
+    for i in range(100000):
+        o = df.iloc[i * 50 : (i + 1) * 50]
+        if o.size == 0:
+            return
+        print(o)
+
+
+def ex(type_id):
+    t = df.loc[type_id]
+    t = t.loc[t.date > START]
+    print(f'Type: {t.iloc[0].type_name} => {t.iloc[0].name}')
+    return t[
+        [
+            'order_id',
+            'is_buy_order',
+            'price',
+            'volume_remain',
+            'volume_total',
+            'date',
+            'type',
+            'volume_change',
+            'price_change',
+        ]
+    ]
 
 
 # by_order = changed.groupby('order_id')['order_id'].count()
