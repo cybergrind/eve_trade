@@ -73,23 +73,6 @@ with_price_changed = big_movers.reset_index()
 # )
 
 
-Info = namedtuple('Info', ['buy', 'sell', 'ratio', 'vol_ratio', 'sell_vol'])
-
-
-def locate(type_id):
-    out = df[df.type_id == type_id]
-    buy = out[out.is_buy_order].sort_values(['price']).iloc[-3:]
-    sell = out[~out.is_buy_order].sort_values(['price']).iloc[:3]
-    try:
-        bp = buy.iloc[-1].price
-        ratio = (sell.iloc[0].price - bp) / bp
-    except Exception:
-        ratio = 0.001
-
-    vol_ratio = (sell['volume_change'].sum() or 0.01) / (buy['volume_change'].sum() or 0.01)
-    sell_vol = sell['volume_change'].sum()
-    return Info(buy, sell, ratio, vol_ratio, sell_vol)
-
 
 def moves(type_id):
     return df[(df.type_id == type_id) & df.volume_change]
@@ -97,10 +80,17 @@ def moves(type_id):
 
 def analyze():
     tmp = with_price_changed.set_index(['type_id'])
-    locate_res = tmp.apply(lambda x: locate(x.name), axis=1)
-    tmp['ratio'] = locate_res.map(lambda x: x.ratio)
-    tmp['vol_ratio'] = locate_res.map(lambda x: x.vol_ratio)
-    tmp['sell_vol'] = locate_res.map(lambda x: x.sell_vol)
+    # locate_res = tmp.apply(lambda x: locate(x.name), axis=1)
+    # tmp['ratio'] = locate_res.map(lambda x: x.ratio)
+    # tmp['vol_ratio'] = locate_res.map(lambda x: x.vol_ratio)
+    # tmp['sell_vol'] = locate_res.map(lambda x: x.sell_vol)
+    b = tmp.loc[tmp.is_buy_order]
+    s = tmp.loc[~tmp.is_buy_order]
+    tmp['ratio'] = (s.price - b.price) / s.price
+    tmp['vol_ratio'] = s.volume_change / b.volume_change
+    tmp['sell_vol'] = s.volume_change
+
+    tmp = tmp.dropna(0)  # remove nans in ratio
     return tmp.sort_values(['ratio'])
 
 
@@ -123,7 +113,6 @@ def pp(frame):
             'created',
             'date',
             'price',
-            'type_id',
             'volume_change',
             'price_change',
             'type',
