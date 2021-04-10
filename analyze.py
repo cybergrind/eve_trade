@@ -1,5 +1,5 @@
-from collections import namedtuple
 import datetime
+from collections import namedtuple
 
 import pandas as pd
 
@@ -43,10 +43,22 @@ def get_price_old(row):
 def get_price(frame):
     b = df.reset_index().set_index(['type_id', 'is_buy_order'])
     b = b[b.type == 'volume'].sort_values('date')
+    aprice = (
+        b
+        .groupby(['type_id', 'is_buy_order'])
+        .tail(50)
+        .groupby(['type_id', 'is_buy_order'])
+        .mean()
+        .price.round(1)
+    )
+
     b = b.reset_index().drop_duplicates(['type_id', 'is_buy_order'], keep='last')
     b = b.set_index(['type_id', 'is_buy_order'])
     rei = b.reindex([frame.type_id, frame.is_buy_order]).reset_index()
     frame['price'] = rei.price
+    frame = frame.set_index(['type_id', 'is_buy_order'])
+    frame['aprice'] = aprice.reindex(frame.index)
+    frame = frame.reset_index()
     return frame
 
 
@@ -73,7 +85,6 @@ with_price_changed = big_movers.reset_index()
 # )
 
 
-
 def moves(type_id):
     return df[(df.type_id == type_id) & df.volume_change]
 
@@ -86,15 +97,16 @@ def analyze():
     # tmp['sell_vol'] = locate_res.map(lambda x: x.sell_vol)
     b = tmp.loc[tmp.is_buy_order]
     s = tmp.loc[~tmp.is_buy_order]
-    tmp['ratio'] = (s.price - b.price) / s.price
-    tmp['vol_ratio'] = s.volume_change / b.volume_change
+    tmp['ratio'] = ((s.price - b.price) / b.price).round(2)
+    tmp['vol_ratio'] = (s.volume_change / b.volume_change).round(2)
     tmp['sell_vol'] = s.volume_change
 
     tmp = tmp.dropna(0)  # remove nans in ratio
     return tmp.sort_values(['ratio'])
 
 
-# a = analyze()
+a = analyze()
+b = a[(a.price > 100000) & (a.ratio > 1.15)]
 
 
 def collapse(row):
