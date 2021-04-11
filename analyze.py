@@ -9,7 +9,8 @@ names = pd.read_hdf('types.hdf')
 df = pd.read_hdf('diff.hdf')
 df = df.reset_index()
 df['type_name'] = names.reindex(df.type_id).reset_index().name
-
+dfo = df.copy()
+df = df.drop(['issued', 'location_id', 'duration', 'system_id'], axis=1)
 
 changed = df[df.volume_change > 1]
 
@@ -107,15 +108,8 @@ def analyze():
 
 a = analyze()
 b = a[(a.price > 100000) & (a.ratio > 1.15)]
-
-
-def collapse(row):
-    print(row)
-
-
-def ttt():
-    tmp = with_price_changed.set_index(['type_id'])
-    tmp.apply(collapse, axis=1)
+tb = b[b.is_buy_order & (b.price < b.aprice)]
+ts = b[~b.is_buy_order & (b.price > b.aprice)]
 
 
 def pp(frame):
@@ -153,6 +147,19 @@ def pp_all(df):
         if o.size == 0:
             return
         print(o)
+
+
+Pair = namedtuple('Pair', ['buy', 'sell'])
+
+
+def bs(type_id):
+    z = df.loc[type_id]
+    return Pair(z[z.is_buy_order], z[~z.is_buy_order])
+
+
+def sales(type_id):
+    z = df.loc[type_id]
+    return z[z.is_buy_order & (z.type.isin(('volume', 'deleted')))]
 
 
 def ex(type_id):
