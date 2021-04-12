@@ -12,7 +12,7 @@ df['type_name'] = names.reindex(df.type_id).reset_index().name
 dfo = df.copy()
 df = df.drop(['issued', 'location_id', 'duration', 'system_id'], axis=1)
 
-changed = df[df.volume_change > 1]
+changed = df[(df.volume_change > 1) | (df.type == 'deleted')]
 
 by_type = changed.groupby('type_id')['type_id'].count()
 more_than_3 = by_type[by_type > 1]
