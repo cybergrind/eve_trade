@@ -45,8 +45,7 @@ def get_price(frame):
     b = df.reset_index().set_index(['type_id', 'is_buy_order'])
     b = b[b.type == 'volume'].sort_values('date')
     aprice = (
-        b
-        .groupby(['type_id', 'is_buy_order'])
+        b.groupby(['type_id', 'is_buy_order'])
         .tail(50)
         .groupby(['type_id', 'is_buy_order'])
         .mean()
@@ -120,8 +119,6 @@ def pp(frame):
             'date',
             'price',
             'volume_change',
-            'price_change',
-            'type',
             'type_name',
         ]
     ]
@@ -179,6 +176,20 @@ def ex(type_id):
             'price_change',
         ]
     ]
+
+
+def by_50(frame, back=True):
+    c = 0
+
+    while True:
+        if back:
+            i1 = -50 * (c + 1)
+            i2 = -50 * c or None
+        else:
+            i1 = 50 * c or None
+            i2 = 50 * (c + 1)
+        yield frame.iloc[i1:i2]
+        c += 1
 
 
 # by_order = changed.groupby('order_id')['order_id'].count()
