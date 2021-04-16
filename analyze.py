@@ -192,4 +192,9 @@ def by_50(frame, back=True):
         c += 1
 
 
+a['vp'] = a.volume_change * a.aprice
+z = a.sort_values('vp')
+y = z.drop('vp', axis=1)
+n = by_50(y)
+
 # by_order = changed.groupby('order_id')['order_id'].count()
